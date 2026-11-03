@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#F7F6F2">
-<title>日课 v0.3 · Daily</title>
+<title>日课 v0.4 · Daily</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%232D6A4F'/><path d='M28 52 L44 68 L74 36' stroke='white' stroke-width='10' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
 <style>
 /* ============ 设计 token ============ */
@@ -198,6 +198,7 @@ a{color:var(--accent);}
 .task.p1::before{background:var(--p1);}
 .task.p2::before{background:var(--p2);}
 .task.p3::before{background:var(--p3); opacity:.4;}
+.task.rolled{background:var(--p2-soft); border-color:var(--p2);}
 .task .title{position:relative; padding-left:2px;}
 .task.p1 .title::before{
   content:''; display:inline-block; width:6px; height:6px; border-radius:50%;
@@ -433,6 +434,10 @@ a{color:var(--accent);}
       <div id="overdueBanner"></div>
       <div id="todayList"></div>
       <div id="doneSection"></div>
+      <div style="display:flex; gap:8px; margin-top:20px; flex-wrap:wrap;">
+        <button class="btn-ghost" id="rolloverBtn" style="font-size:13px;">晚间处理：把未完成的滚到明天</button>
+        <button class="btn-ghost" id="diaryBtn" style="font-size:13px;">生成今日日记</button>
+      </div>
     </section>
 
     <!-- 日历视图 -->
@@ -497,14 +502,21 @@ a{color:var(--accent);}
       <button class="btn-ghost" id="importJson" style="margin-left:8px;">导入备份</button>
       <input type="file" id="importFile" accept=".json" style="display:none">
       <div style="text-align:center; margin-top:32px;">
-        <button id="versionBtn" style="color:var(--text-3); font-size:12px; text-decoration:underline;">日课 Todo v0.3 · 查看更新日志</button>
+        <button id="versionBtn" style="color:var(--text-3); font-size:12px; text-decoration:underline;">日课 Todo v0.4 · 查看更新日志</button>
       </div>
       <div id="changelog" style="display:none; margin-top:12px; padding:14px; background:var(--surface-2); border-radius:10px; font-size:13px; line-height:1.8; color:var(--text-2); text-align:left;">
+        <b>v0.4</b><br>
+        · 习惯打卡：编辑任务可选"每天重复"，打勾自动推到明天<br>
+        · 拖延提醒：任务被滚3天以上自动标黄<br>
+        · 截止日期：编辑任务可设 deadline，5天内显示倒计时<br>
+        · 晚间一键滚动：一键把今天未完成全滚到明天<br>
+        · 自动日记：一键生成今日完成 markdown<br>
+        · 子项目旁加 + 号，直接建子项目<br><br>
         <b>v0.3</b><br>
         · 任务左侧加优先级色条，P1 自动排最前<br>
         · 支持子项目（教育/校内学习）<br>
-        · 项目可重命名（侧边栏点 ✎）<br>
-        · 快速输入框旁可选项目，不用死记 #<br><br>
+        · 项目可重命名<br>
+        · 快速输入框旁可选项目<br><br>
         <b>v0.2</b><br>
         · 操作按钮放大，手机端始终显示<br>
         · 每 30 秒自动同步<br><br>
@@ -546,6 +558,13 @@ a{color:var(--accent);}
       </select>
     </div>
     <div class="field"><label>计划日期</label><input type="date" id="mDue"></div>
+    <div class="field"><label>截止日期（可选，deadline）</label><input type="date" id="mDeadline"></div>
+    <div class="field"><label>重复</label>
+      <select id="mRecurrence">
+        <option value="">不重复</option>
+        <option value="daily">每天重复（习惯打卡）</option>
+      </select>
+    </div>
     <div class="field"><label>备注</label><textarea id="mNote" rows="2"></textarea></div>
     <div class="field"><label>标签（逗号分隔）</label><input id="mTags" placeholder="等回复, 在家做"></div>
     <div class="field"><label>子任务（每行一条）</label><textarea id="mSubs" rows="3"></textarea></div>
@@ -799,19 +818,32 @@ function renderToday(){
 function taskHtml(t, showProject){
   const pChip = t.priority?`<span class="chip p${t.priority}">P${t.priority}</span>`:'';
   const tags = (t.tags||[]).map(tag=>`<span class="chip">#${escapeHtml(tag)}</span>`).join('');
+  // deadline 倒计时
+  let dlChip = '';
+  if(t.deadline && !t.completed){
+    const daysLeft = Math.ceil((new Date(t.deadline)-new Date(todayStr()))/86400000);
+    if(daysLeft < 0) dlChip = `<span class="chip overdue">已过期${-daysLeft}天</span>`;
+    else if(daysLeft === 0) dlChip = `<span class="chip overdue">今天截止</span>`;
+    else if(daysLeft <= 5) dlChip = `<span class="chip p2">还剩${daysLeft}天</span>`;
+  }
+  // 习惯标记
+  const habitChip = t.recurrence==='daily' ? `<span class="chip" style="background:var(--accent-soft);color:var(--accent);">每日</span>` : '';
+  // 拖延标记
+  const rollWarn = (t.rollCount||0) >= 3 ? `<span class="chip overdue">拖延${t.rollCount}天</span>` : '';
+  const rollClass = (t.rollCount||0) >= 3 ? ' rolled' : '';
   const subs = (t.subs||[]).length?`<div class="subtasks">
     ${t.subs.map((s,i)=>`<div class="subtask ${s.done?'done':''}">
       <div class="sdot" onclick="toggleSub('${t.id}',${i})"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
       <span>${escapeHtml(s.t)}</span>
     </div>`).join('')}
   </div>`:'';
-  return `<div class="task ${t.completed?'done':''} p${t.priority||0}" data-id="${t.id}">
+  return `<div class="task ${t.completed?'done':''} p${t.priority||0}${rollClass}" data-id="${t.id}">
     <div class="check" onclick="toggleTask('${t.id}')">
       <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
     </div>
     <div class="body">
       <div class="title">${escapeHtml(t.title)}</div>
-      <div class="meta">${pChip}${showProject?`<span class="chip">${escapeHtml(t.project||'未分类')}</span>`:''}${tags}
+      <div class="meta">${pChip}${habitChip}${rollWarn}${dlChip}${showProject?`<span class="chip">${escapeHtml(t.project||'未分类')}</span>`:''}${tags}
         ${t.pomoDone?`<span class="chip">番茄 ${t.pomoDone}</span>`:''}
       </div>
       ${subs}
@@ -914,7 +946,6 @@ function renderStats(){
    ================================================================ */
 function renderSideProjects(){
   const el = document.getElementById('sideProjects');
-  // 构建项目树：顶级 + 子级
   const roots = state.projects.filter(p=>!p.includes('/'));
   let html = '';
   roots.forEach(root=>{
@@ -923,6 +954,7 @@ function renderSideProjects(){
     html += `<div class="project-row" onclick="filterProject('${escapeHtml(root)}')">
       <span class="project-dot" style="background:${projectColor(root)}"></span>
       <span style="flex:1">${escapeHtml(root)}</span>
+      <button onclick="event.stopPropagation();addSubProject('${escapeHtml(root)}')" style="color:var(--accent);padding:0 4px;font-size:14px;" title="新建子项目">+</button>
       <button onclick="event.stopPropagation();renameProject('${escapeHtml(root)}')" style="color:var(--text-3);padding:0 4px;font-size:12px;" title="重命名">✎</button>
       <span class="project-count">${rootCount}</span>
     </div>`;
@@ -938,6 +970,16 @@ function renderSideProjects(){
     });
   });
   el.innerHTML = html;
+}
+
+function addSubProject(parentPath){
+  const name = prompt(`在「${parentPath}」下新建子项目名：`);
+  if(!name || !name.trim()) return;
+  const full = parentPath + '/' + name.trim();
+  if(!state.projects.includes(full)){
+    state.projects.push(full);
+    commit();
+  }
 }
 
 function renameProject(oldPath){
@@ -981,6 +1023,16 @@ function renderAll(){
 function toggleTask(id){
   const t = state.tasks.find(x=>x.id===id);
   if(!t) return;
+  if(t.recurrence==='daily' && !t.completed){
+    // 习惯任务打勾：记录今天完成，自动推到明天重新出现
+    t.completed = false;
+    t.completedAt = new Date().toISOString();
+    t.dueDate = addDays(t.dueDate, 1);
+    t.rollCount = 0;
+    commit();
+    toast('打卡成功，明天继续');
+    return;
+  }
   t.completed = !t.completed;
   t.completedAt = t.completed? new Date().toISOString() : null;
   commit();
@@ -993,6 +1045,7 @@ function snooze(id){
   const t = state.tasks.find(x=>x.id===id);
   if(!t) return;
   t.dueDate = addDays(t.dueDate, 1);
+  t.rollCount = (t.rollCount||0) + 1;
   commit();
   toast('已挪到明天');
 }
@@ -1085,6 +1138,8 @@ function openEdit(id){
   document.getElementById('mProject').innerHTML = state.projects.map(p=>`<option ${p===t.project?'selected':''}>${escapeHtml(p)}</option>`).join('');
   document.getElementById('mPriority').value = t.priority;
   document.getElementById('mDue').value = t.dueDate;
+  document.getElementById('mDeadline').value = t.deadline||'';
+  document.getElementById('mRecurrence').value = t.recurrence||'';
   document.getElementById('mNote').value = t.note||'';
   document.getElementById('mTags').value = (t.tags||[]).join(', ');
   document.getElementById('mSubs').value = (t.subs||[]).map(s=>(s.done?'[x] ':'')+s.t).join('\n');
@@ -1099,6 +1154,8 @@ document.getElementById('mSave').onclick = ()=>{
   t.project = document.getElementById('mProject').value;
   t.priority = parseInt(document.getElementById('mPriority').value);
   t.dueDate = document.getElementById('mDue').value;
+  t.deadline = document.getElementById('mDeadline').value || null;
+  t.recurrence = document.getElementById('mRecurrence').value || null;
   t.note = document.getElementById('mNote').value;
   t.tags = document.getElementById('mTags').value.split(/[,，]/).map(s=>s.trim()).filter(Boolean);
   t.subs = document.getElementById('mSubs').value.split('\n').filter(Boolean).map(line=>{
@@ -1238,6 +1295,43 @@ document.getElementById('pomoClose').onclick = ()=>{
   if(pomoTimer){ clearInterval(pomoTimer); pomoTimer=null; }
 };
 document.getElementById('pomoFab').onclick = ()=>document.getElementById('pomoPanel').classList.toggle('show');
+
+/* 晚间一键滚动：把今天未完成的任务批量滚到明天 */
+document.getElementById('rolloverBtn').onclick = ()=>{
+  const today = todayStr();
+  const active = state.tasks.filter(t=>t.dueDate===today && !t.completed && t.recurrence!=='daily');
+  if(active.length===0){ toast('今天都做完了'); return; }
+  let msg = `今天还有 ${active.length} 件未完成：\n\n`;
+  active.forEach((t,i)=>{ msg += `${i+1}. ${t.title}\n`; });
+  msg += `\n全部滚到明天？`;
+  if(confirm(msg)){
+    active.forEach(t=>{ t.dueDate = addDays(t.dueDate,1); t.rollCount=(t.rollCount||0)+1; });
+    commit();
+    toast('已全部滚到明天');
+  }
+};
+
+/* 生成今日日记 */
+document.getElementById('diaryBtn').onclick = async ()=>{
+  const today = todayStr();
+  const done = state.tasks.filter(t=>t.completed && t.completedAt && t.completedAt.slice(0,10)===today);
+  const active = state.tasks.filter(t=>t.dueDate===today && !t.completed);
+  let md = `# ${fmtDate(today)} ${weekdayCN(today)}\n\n`;
+  md += `## 完成了什么\n\n`;
+  if(done.length===0) md += `（今天还没有完成任务）\n`;
+  else done.forEach(t=>{ md += `- [x] ${t.title}\n`; });
+  md += `\n## 还没做完\n\n`;
+  if(active.length===0) md += `（都做完了）\n`;
+  else active.forEach(t=>{ md += `- [ ] ${t.title}\n`; });
+  md += `\n---\n*由日课 Todo 自动生成*\n`;
+  // 下载
+  const blob = new Blob([md],{type:'text/markdown'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `diary-${today}.md`;
+  a.click();
+  toast('日记已下载，可保存到 GitHub');
+};
 
 /* ================================================================
    启动
