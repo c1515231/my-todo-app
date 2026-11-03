@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#F7F6F2">
-<title>日课 v0.4 · Daily</title>
+<title>日课 v0.5 · Daily</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%232D6A4F'/><path d='M28 52 L44 68 L74 36' stroke='white' stroke-width='10' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
 <style>
 /* ============ 设计 token ============ */
@@ -15,9 +15,9 @@
   --border:#E5E3DC; --border-strong:#CFCFC6;
   --text:#1C1C1A; --text-2:#6B6B66; --text-3:#9C9C96;
   --accent:#2D6A4F; --accent-strong:#1F4D38; --accent-soft:#DCEBE2;
-  --p1:#C9303C; --p1-soft:#FBE7E8;
-  --p2:#C97A14; --p2-soft:#FBEFD9;
-  --p3:#8E8E88; --p3-soft:#EFEFEA;
+  --p1:#E74C3C; --p1-soft:#FDECEA;
+  --p2:#F39C12; --p2-soft:#FEF5E7;
+  --p3:#95A5A6; --p3-soft:#F4F6F7;
   --danger:#B3261E;
   --shadow:0 1px 2px rgba(28,28,26,.04), 0 2px 8px rgba(28,28,26,.04);
   --radius:14px; --radius-sm:10px;
@@ -195,9 +195,9 @@ a{color:var(--accent);}
   content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
   background:transparent;
 }
-.task.p1::before{background:var(--p1);}
-.task.p2::before{background:var(--p2);}
-.task.p3::before{background:var(--p3); opacity:.4;}
+.task.p1::before{background:#E74C3C; width:6px;}
+.task.p2::before{background:#F39C12; width:6px;}
+.task.p3::before{background:#95A5A6; opacity:.5; width:6px;}
 .task.rolled{background:var(--p2-soft); border-color:var(--p2);}
 .task .title{position:relative; padding-left:2px;}
 .task.p1 .title::before{
@@ -386,6 +386,10 @@ a{color:var(--accent);}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
       今日
     </button>
+    <button class="nav-item" data-view="week">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      周视图
+    </button>
     <button class="nav-item" data-view="calendar">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
       日历
@@ -428,15 +432,29 @@ a{color:var(--accent);}
       <div class="quick-add">
         <svg class="inline-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input id="quickInput" placeholder="添加任务，试试：明天下午3点 家长 #教育 重要" autocomplete="off">
+        <select id="quickPriority" style="border:none; background:transparent; color:var(--accent); font-size:13px; outline:none; cursor:pointer;">
+          <option value="3">P3</option>
+          <option value="2">P2</option>
+          <option value="1">P1</option>
+        </select>
         <select id="quickProject" style="border:none; background:transparent; color:var(--accent); font-size:13px; max-width:100px; outline:none; cursor:pointer;"></select>
+      </div>
+      <div style="display:flex; gap:8px; margin:10px 0;">
+        <button id="rolloverBtn" style="flex:1; padding:10px; border:none; border-radius:8px; background:var(--accent); color:white; font-size:13px; cursor:pointer;">晚间处理</button>
+        <button id="diaryBtn" style="flex:1; padding:10px; border:none; border-radius:8px; background:var(--surface-2); color:var(--text-2); font-size:13px; cursor:pointer;">生成今日日记</button>
       </div>
 
       <div id="overdueBanner"></div>
+      <div id="focusBanner"></div>
       <div id="todayList"></div>
       <div id="doneSection"></div>
-      <div style="display:flex; gap:8px; margin-top:20px; flex-wrap:wrap;">
-        <button class="btn-ghost" id="rolloverBtn" style="font-size:13px;">晚间处理：把未完成的滚到明天</button>
-        <button class="btn-ghost" id="diaryBtn" style="font-size:13px;">生成今日日记</button>
+    </section>
+
+    <!-- 周视图 -->
+    <section class="view" id="view-week">
+      <div style="padding:20px;">
+        <div style="font-size:18px; font-weight:600; margin-bottom:16px;">本周概览</div>
+        <div id="weekGrid" style="display:grid; grid-template-columns:repeat(7,1fr); gap:8px;"></div>
       </div>
     </section>
 
@@ -502,24 +520,29 @@ a{color:var(--accent);}
       <button class="btn-ghost" id="importJson" style="margin-left:8px;">导入备份</button>
       <input type="file" id="importFile" accept=".json" style="display:none">
       <div style="text-align:center; margin-top:32px;">
-        <button id="versionBtn" style="color:var(--text-3); font-size:12px; text-decoration:underline;">日课 Todo v0.4 · 查看更新日志</button>
+        <button id="versionBtn" style="color:var(--text-3); font-size:12px; text-decoration:underline;">日课 Todo v0.5 · 查看更新日志</button>
       </div>
       <div id="changelog" style="display:none; margin-top:12px; padding:14px; background:var(--surface-2); border-radius:10px; font-size:13px; line-height:1.8; color:var(--text-2); text-align:left;">
+        <b>v0.5</b><br>
+        · 优先级色条加粗，P1鲜红/P2明黄一眼区分<br>
+        · 今日视图加星标功能，标记今日重点<br>
+        · 顶部加快速选优先级下拉（P1/P2/P3）<br>
+        · 默认加"收集箱"项目，没想好归哪的先丢这<br>
+        · 日期栏显示任务数：未完成X/共Y，昨天/明天任务数<br>
+        · 新增周视图：整周7天每天任务量，点跳那天<br>
+        · 父子项目收纳：今日视图父项目下缩进显示子项目<br>
+        · 晚间按钮移到顶部，改成实色按钮更醒目<br><br>
         <b>v0.4</b><br>
-        · 习惯打卡：编辑任务可选"每天重复"，打勾自动推到明天<br>
-        · 拖延提醒：任务被滚3天以上自动标黄<br>
-        · 截止日期：编辑任务可设 deadline，5天内显示倒计时<br>
-        · 晚间一键滚动：一键把今天未完成全滚到明天<br>
-        · 自动日记：一键生成今日完成 markdown<br>
-        · 子项目旁加 + 号，直接建子项目<br><br>
+        · 习惯打卡：每天重复，打勾自动推明天<br>
+        · 拖延提醒：滚3天以上标黄<br>
+        · 截止日期：5天内显示倒计时<br>
+        · 晚间一键滚动、自动日记<br>
+        · 子项目旁加 + 号直接建子项目<br><br>
         <b>v0.3</b><br>
-        · 任务左侧加优先级色条，P1 自动排最前<br>
-        · 支持子项目（教育/校内学习）<br>
-        · 项目可重命名<br>
-        · 快速输入框旁可选项目<br><br>
+        · 任务左侧优先级色条，P1自动排最前<br>
+        · 子项目、项目重命名、快速选项目<br><br>
         <b>v0.2</b><br>
-        · 操作按钮放大，手机端始终显示<br>
-        · 每 30 秒自动同步<br><br>
+        · 操作按钮放大，30秒自动同步<br><br>
         <b>v0.1</b><br>
         · 初版：今日视图、项目分组、自动滚动、番茄钟、热力图
       </div>
@@ -609,7 +632,7 @@ const PROJECT_COLORS = ['#2D6A4F','#C97A14','#7C5CBF','#C9303C','#1F6F8B','#B07D
 
 let state = {
   tasks: [],          // {id,title,project,tags:[],priority,dueDate,completed,completedAt,createdAt,note,subs:[{t,done}],pomoDone}
-  projects: ['工作','教育','生活','健康'],
+  projects: ['📥 收集箱','工作','教育','生活','健康'],
   settings: { dailyGoal:5, theme:'auto' },
   colorMap: {}        // project -> color
 };
@@ -760,6 +783,17 @@ function renderToday(){
   document.getElementById('dateTitle').textContent = fmtDate(currentDate);
   document.getElementById('weekday').textContent = weekdayCN(currentDate) + (currentDate===todayStr()?' · 今天':'');
 
+  // 今日任务数量统计
+  const dayTasks = tasksOn(currentDate);
+  const dayActive = dayTasks.filter(t=>!t.completed).length;
+  const dayTotal = dayTasks.length;
+  const yday = addDays(currentDate,-1);
+  const tmr = addDays(currentDate,1);
+  const yCount = state.tasks.filter(t=>t.dueDate===yday && !t.completed).length;
+  const tCount = state.tasks.filter(t=>t.dueDate===tmr && !t.completed).length;
+  document.getElementById('weekday').textContent =
+    `${weekdayCN(currentDate)} · 未完成${dayActive}/共${dayTotal} ｜ 昨天${yCount} ｜ 明天${tCount}`;
+
   // 昨日遗留
   const od = currentDate === todayStr() ? overdueTasks() : [];
   const odBanner = document.getElementById('overdueBanner');
@@ -784,21 +818,46 @@ function renderToday(){
     </div>`;
   }
 
+  // 今日重点（星标任务）
+  const starred = active.filter(t=>t.star);
+  const focusEl = document.getElementById('focusBanner');
+  if(starred.length){
+    focusEl.innerHTML = `<div style="margin-bottom:14px; padding:12px; background:var(--p2-soft); border-radius:10px;">
+      <div style="font-size:12px; color:var(--p2); margin-bottom:8px;">今日重点（${starred.length}件）</div>
+      ${starred.map(t=>taskHtml(t, false)).join('')}
+    </div>`;
+  } else focusEl.innerHTML = '';
+
   const g = groupByProject(active);
   let html = warn;
   if(Object.keys(g).length===0){
     html += `<div class="empty"><div class="big">✓</div><div class="tip">今天还没有安排任务<br>在上方输入框添加第一件吧</div></div>`;
   } else {
-    for(const [proj, arr] of Object.entries(g)){
+    // 按顶级项目分组，子项目缩进显示
+    const roots = Object.keys(g).filter(p=>!p.includes('/'));
+    roots.forEach(root=>{
+      // 顶级项目下的任务
+      const rootTasks = g[root].filter(t=>!t.project.includes('/'));
+      const childKeys = Object.keys(g).filter(p=>p.startsWith(root+'/'));
       html += `<div class="project-group">
         <div class="project-head">
-          <span class="dot" style="background:${projectColor(proj)}"></span>
-          <span class="name">${escapeHtml(proj)}</span>
-          <span class="count">${arr.length}</span>
-        </div>
-        ${arr.map(t=>taskHtml(t, true)).join('')}
-      </div>`;
-    }
+          <span class="dot" style="background:${projectColor(root)}"></span>
+          <span class="name">${escapeHtml(root)}</span>
+          <span class="count">${rootTasks.length + childKeys.reduce((s,k)=>s+g[k].length,0)}</span>
+        </div>`;
+      rootTasks.forEach(t=>{ if(!t.star) html += taskHtml(t, true); });
+      // 子项目缩进
+      childKeys.forEach(child=>{
+        const childName = child.split('/').slice(1).join('/');
+        const childRest = g[child].filter(t=>!t.star);
+        if(childRest.length===0) return;
+        html += `<div style="margin-left:14px; padding-left:10px; border-left:2px solid var(--border); margin-top:6px;">
+          <div style="font-size:12px; color:var(--text-3); padding:4px 0;">${escapeHtml(childName)}</div>
+          ${childRest.map(t=>taskHtml(t, false)).join('')}
+        </div>`;
+      });
+      html += `</div>`;
+    });
   }
   document.getElementById('todayList').innerHTML = html;
 
@@ -849,6 +908,7 @@ function taskHtml(t, showProject){
       ${subs}
     </div>
     <div class="actions">
+      <button onclick="toggleStar('${t.id}')" title="标为今日重点" style="color:${t.star?'#F39C12':'var(--text-3)'};"><svg viewBox="0 0 24 24" fill="${t.star?'#F39C12':'none'}" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></button>
       <button onclick="openEdit('${t.id}')" title="编辑"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 21l-4 1 1-4 9.5-9.5z"/></svg></button>
       <button onclick="startPomo('${t.id}')" title="番茄钟"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M9 2h6"/></svg></button>
       <button onclick="snooze('${t.id}')" title="挪到明天"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></button>
@@ -859,6 +919,28 @@ function taskHtml(t, showProject){
 /* ================================================================
    渲染：日历视图
    ================================================================ */
+function renderWeek(){
+  const grid = document.getElementById('weekGrid');
+  // 本周一到周日
+  const today = new Date();
+  const day = today.getDay() || 7; // 周日=7
+  const monday = addDays(todayStr(), -(day-1));
+  let html = '';
+  for(let i=0;i<7;i++){
+    const d = addDays(monday, i);
+    const tasks = state.tasks.filter(t=>t.dueDate===d);
+    const active = tasks.filter(t=>!t.completed).length;
+    const done = tasks.length - active;
+    const isToday = d === todayStr();
+    html += `<div onclick="currentDate='${d}';switchView('today');" style="padding:12px 8px; border-radius:10px; background:${isToday?'var(--accent-soft)':'var(--surface-2)'}; text-align:center; cursor:pointer;">
+      <div style="font-size:12px; color:var(--text-3);">${['一','二','三','四','五','六','日'][i]}</div>
+      <div style="font-size:20px; font-weight:600; margin:4px 0;">${parseInt(d.slice(8))}</div>
+      <div style="font-size:11px; color:var(--text-2);">${active}待办<br>${done}完成</div>
+    </div>`;
+  }
+  grid.innerHTML = html;
+}
+
 function renderCalendar(){
   const y = calCursor.getFullYear(), m = calCursor.getMonth();
   document.getElementById('calTitle').textContent = `${y}年${m+1}月`;
@@ -1011,6 +1093,7 @@ function renameProject(oldPath){
 
 function renderAll(){
   renderToday();
+  renderWeek();
   renderCalendar();
   renderStats();
   renderSideProjects();
@@ -1035,6 +1118,12 @@ function toggleTask(id){
   }
   t.completed = !t.completed;
   t.completedAt = t.completed? new Date().toISOString() : null;
+  commit();
+}
+function toggleStar(id){
+  const t = state.tasks.find(x=>x.id===id);
+  if(!t) return;
+  t.star = !t.star;
   commit();
 }
 function toggleSub(tid, idx){
@@ -1089,10 +1178,12 @@ document.getElementById('quickInput').addEventListener('keydown', e=>{
     // 如果输入里没有 #项目，用选择器选的项目
     const selProject = document.getElementById('quickProject').value;
     if(selProject && !inputHadProject) p.project = selProject;
+    const selPriority = parseInt(document.getElementById('quickPriority').value);
+    if(selPriority) p.priority = selPriority;
     state.tasks.push({
       id: uid(), title: p.title, project: p.project, priority: p.priority,
       dueDate: p.dueDate, completed:false, completedAt:null,
-      createdAt: new Date().toISOString(), note:'', subs:[], tags:p.tags, pomoDone:0
+      createdAt: new Date().toISOString(), note:'', subs:[], tags:p.tags, pomoDone:0, star:false
     });
     e.target.value='';
     commit();
