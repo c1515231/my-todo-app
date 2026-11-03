@@ -1174,6 +1174,13 @@ document.getElementById('cfgTheme').value = state.settings.theme||'auto';
 renderAll();
 // 自动加载云端
 if(_cfg.user && _cfg.repo && _cfg.token) ghLoad();
+// 每 30 秒静默同步一次（页面在后台时浏览器会自动节流，不耗电）
+setInterval(()=>{
+  const c = getCfg();
+  if(c.user && c.repo && c.token && !document.getElementById('taskModal').classList.contains('show')){
+    ghLoad();
+  }
+}, 30000);
 </script>
 </body>
 </html>
