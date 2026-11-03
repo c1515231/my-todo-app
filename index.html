@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#F7F6F2">
-<title>日课 v0.2 · Daily</title>
+<title>日课 v0.3 · Daily</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%232D6A4F'/><path d='M28 52 L44 68 L74 36' stroke='white' stroke-width='10' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
 <style>
 /* ============ 设计 token ============ */
@@ -188,6 +188,21 @@ a{color:var(--accent);}
 
 /* 子任务 */
 .subtasks{margin-top:6px; padding-left:2px;}
+
+/* 优先级色条 */
+.task{position:relative; overflow:hidden;}
+.task::before{
+  content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
+  background:transparent;
+}
+.task.p1::before{background:var(--p1);}
+.task.p2::before{background:var(--p2);}
+.task.p3::before{background:var(--p3); opacity:.4;}
+.task .title{position:relative; padding-left:2px;}
+.task.p1 .title::before{
+  content:''; display:inline-block; width:6px; height:6px; border-radius:50%;
+  background:var(--p1); margin-right:6px; vertical-align:middle;
+}
 .subtask{
   display:flex; align-items:center; gap:6px;
   font-size:13px; color:var(--text-2); padding:2px 0;
@@ -412,6 +427,7 @@ a{color:var(--accent);}
       <div class="quick-add">
         <svg class="inline-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input id="quickInput" placeholder="添加任务，试试：明天下午3点 家长 #教育 重要" autocomplete="off">
+        <select id="quickProject" style="border:none; background:transparent; color:var(--accent); font-size:13px; max-width:100px; outline:none; cursor:pointer;"></select>
       </div>
 
       <div id="overdueBanner"></div>
@@ -480,8 +496,20 @@ a{color:var(--accent);}
       <button class="btn-ghost" id="exportJson" style="margin-left:8px;">备份全部 JSON</button>
       <button class="btn-ghost" id="importJson" style="margin-left:8px;">导入备份</button>
       <input type="file" id="importFile" accept=".json" style="display:none">
-      <div style="text-align:center; color:var(--text-3); font-size:12px; margin-top:32px;">
-        日课 Todo v0.2 · 数据存于你的 GitHub 私有仓库
+      <div style="text-align:center; margin-top:32px;">
+        <button id="versionBtn" style="color:var(--text-3); font-size:12px; text-decoration:underline;">日课 Todo v0.3 · 查看更新日志</button>
+      </div>
+      <div id="changelog" style="display:none; margin-top:12px; padding:14px; background:var(--surface-2); border-radius:10px; font-size:13px; line-height:1.8; color:var(--text-2); text-align:left;">
+        <b>v0.3</b><br>
+        · 任务左侧加优先级色条，P1 自动排最前<br>
+        · 支持子项目（教育/校内学习）<br>
+        · 项目可重命名（侧边栏点 ✎）<br>
+        · 快速输入框旁可选项目，不用死记 #<br><br>
+        <b>v0.2</b><br>
+        · 操作按钮放大，手机端始终显示<br>
+        · 每 30 秒自动同步<br><br>
+        <b>v0.1</b><br>
+        · 初版：今日视图、项目分组、自动滚动、番茄钟、热力图
       </div>
     </section>
   </main>
@@ -777,7 +805,7 @@ function taskHtml(t, showProject){
       <span>${escapeHtml(s.t)}</span>
     </div>`).join('')}
   </div>`:'';
-  return `<div class="task ${t.completed?'done':''}" data-id="${t.id}">
+  return `<div class="task ${t.completed?'done':''} p${t.priority||0}" data-id="${t.id}">
     <div class="check" onclick="toggleTask('${t.id}')">
       <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
     </div>
@@ -886,13 +914,57 @@ function renderStats(){
    ================================================================ */
 function renderSideProjects(){
   const el = document.getElementById('sideProjects');
-  el.innerHTML = state.projects.map(p=>`
-    <div class="project-row" onclick="filterProject('${escapeHtml(p)}')">
-      <span class="project-dot" style="background:${projectColor(p)}"></span>
-      ${escapeHtml(p)}
-      <span class="project-count">${state.tasks.filter(t=>t.project===p && !t.completed).length}</span>
-    </div>
-  `).join('');
+  // 构建项目树：顶级 + 子级
+  const roots = state.projects.filter(p=>!p.includes('/'));
+  let html = '';
+  roots.forEach(root=>{
+    const children = state.projects.filter(p=>p.startsWith(root+'/'));
+    const rootCount = state.tasks.filter(t=>t.project===root && !t.completed).length;
+    html += `<div class="project-row" onclick="filterProject('${escapeHtml(root)}')">
+      <span class="project-dot" style="background:${projectColor(root)}"></span>
+      <span style="flex:1">${escapeHtml(root)}</span>
+      <button onclick="event.stopPropagation();renameProject('${escapeHtml(root)}')" style="color:var(--text-3);padding:0 4px;font-size:12px;" title="重命名">✎</button>
+      <span class="project-count">${rootCount}</span>
+    </div>`;
+    children.forEach(child=>{
+      const childName = child.split('/').slice(1).join('/');
+      const childCount = state.tasks.filter(t=>t.project===child && !t.completed).length;
+      html += `<div class="project-row" style="padding-left:28px;" onclick="filterProject('${escapeHtml(child)}')">
+        <span class="project-dot" style="background:${projectColor(child)};width:6px;height:6px;"></span>
+        <span style="flex:1;font-size:13px;">${escapeHtml(childName)}</span>
+        <button onclick="event.stopPropagation();renameProject('${escapeHtml(child)}')" style="color:var(--text-3);padding:0 4px;font-size:12px;" title="重命名">✎</button>
+        <span class="project-count">${childCount}</span>
+      </div>`;
+    });
+  });
+  el.innerHTML = html;
+}
+
+function renameProject(oldPath){
+  const newName = prompt('重命名项目：', oldPath.split('/').pop());
+  if(!newName || newName.trim()===oldPath.split('/').pop()) return;
+  const parts = oldPath.split('/'); parts[parts.length-1] = newName.trim();
+  const newPath = parts.join('/');
+  // 更新项目列表
+  const idx = state.projects.indexOf(oldPath);
+  if(idx>=0) state.projects[idx] = newPath;
+  // 更新所有任务
+  state.tasks.forEach(t=>{
+    if(t.project===oldPath) t.project = newPath;
+  });
+  // 更新子项目路径
+  state.projects.forEach((p,i)=>{
+    if(p.startsWith(oldPath+'/')){
+      state.projects[i] = newPath + p.slice(oldPath.length);
+    }
+  });
+  state.tasks.forEach(t=>{
+    if(t.project.startsWith(oldPath+'/')){
+      t.project = newPath + t.project.slice(oldPath.length);
+    }
+  });
+  commit();
+  toast('已重命名');
 }
 
 function renderAll(){
@@ -900,6 +972,7 @@ function renderAll(){
   renderCalendar();
   renderStats();
   renderSideProjects();
+  refreshQuickProject();
 }
 
 /* ================================================================
@@ -960,6 +1033,9 @@ function parseQuickInput(text){
 document.getElementById('quickInput').addEventListener('keydown', e=>{
   if(e.key==='Enter' && e.target.value.trim()){
     const p = parseQuickInput(e.target.value);
+    // 如果输入里没有 #项目，用选择器选的项目
+    const selProject = document.getElementById('quickProject').value;
+    if(selProject && !inputHadProject) p.project = selProject;
     state.tasks.push({
       id: uid(), title: p.title, project: p.project, priority: p.priority,
       dueDate: p.dueDate, completed:false, completedAt:null,
@@ -968,6 +1044,18 @@ document.getElementById('quickInput').addEventListener('keydown', e=>{
     e.target.value='';
     commit();
   }
+});
+
+// 刷新快速输入的项目下拉
+function refreshQuickProject(){
+  const sel = document.getElementById('quickProject');
+  const current = sel.value;
+  sel.innerHTML = state.projects.map(p=>`<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
+  if(state.projects.includes(current)) sel.value = current;
+}
+let inputHadProject = false;
+document.getElementById('quickInput').addEventListener('input', e=>{
+  inputHadProject = /#/.test(e.target.value);
 });
 
 /* 日期导航 */
@@ -1080,11 +1168,20 @@ document.getElementById('importFile').onchange = e=>{
   r.readAsText(f);
 };
 
+// 更新日志展开
+document.getElementById('versionBtn').onclick = ()=>{
+  const cl = document.getElementById('changelog');
+  cl.style.display = cl.style.display==='none' ? 'block' : 'none';
+};
+
 /* 项目管理 */
 document.getElementById('addProjectBtn').onclick = ()=>{
-  const name = prompt('新项目名称：');
-  if(name && !state.projects.includes(name.trim())){
-    state.projects.push(name.trim());
+  const rootProjects = state.projects.filter(p=>!p.includes('/'));
+  const parent = prompt(`新建项目\n\n顶级项目名直接输入（如：旅行）\n要建子项目请输入"父项目/子项目"（如：教育/编程）\n\n现有顶级项目：${rootProjects.join('、')}`);
+  if(!parent || !parent.trim()) return;
+  const name = parent.trim();
+  if(!state.projects.includes(name)){
+    state.projects.push(name);
     commit();
   }
 };
