@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#F7F6F2">
-<title>日课 v0.5 · Daily</title>
+<title>日课 v0.6 · Daily</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%232D6A4F'/><path d='M28 52 L44 68 L74 36' stroke='white' stroke-width='10' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
 <style>
 /* ============ 设计 token ============ */
@@ -137,34 +137,35 @@ a{color:var(--accent);}
 
 /* ============ 任务项 ============ */
 .task{
-  display:flex; align-items:flex-start; gap:10px;
-  padding:11px 12px; background:var(--surface);
-  border-radius:var(--radius-sm); margin-bottom:6px;
+  display:flex; align-items:flex-start; gap:8px;
+  padding:8px 10px; background:var(--surface);
+  border-radius:var(--radius-sm); margin-bottom:4px;
   border:1px solid var(--border);
   transition:opacity .2s;
 }
 .task:hover{border-color:var(--border-strong);}
 .task .check{
-  width:22px; height:22px; border-radius:50%;
+  width:20px; height:20px; border-radius:50%;
   border:2px solid var(--border-strong); flex-shrink:0;
-  margin-top:1px; cursor:pointer;
+  margin-top:2px; cursor:pointer;
   display:flex; align-items:center; justify-content:center;
   transition:all .15s;
 }
 .task .check:hover{border-color:var(--accent);}
 .task.done .check{background:var(--accent); border-color:var(--accent);}
 .task.done .check svg{opacity:1; stroke-dashoffset:0;}
-.task .check svg{width:12px; height:12px; color:white; opacity:0; transition:opacity .15s;}
+.task .check svg{width:10px; height:10px; color:white; opacity:0; transition:opacity .15s;}
 .task .body{flex:1; min-width:0;}
-.task .title{font-size:15px; word-break:break-word;}
+.task .title{font-size:14px; word-break:break-word;}
 .task.done .title{text-decoration:line-through; color:var(--text-3);}
 .task .meta{
-  display:flex; flex-wrap:wrap; gap:6px; margin-top:4px;
-  font-size:11px; color:var(--text-3);
+  display:flex; flex-wrap:nowrap; overflow:hidden; gap:4px; margin-top:2px;
+  font-size:10px; color:var(--text-3);
 }
 .chip{
-  padding:2px 8px; border-radius:99px;
+  padding:1px 6px; border-radius:99px;
   background:var(--surface-2); color:var(--text-2);
+  white-space:nowrap; flex-shrink:0;
 }
 .chip.p1{background:var(--p1-soft); color:var(--p1);}
 .chip.p2{background:var(--p2-soft); color:var(--p2);}
@@ -483,6 +484,7 @@ a{color:var(--accent);}
         <h3>本周回顾</h3>
         <div id="weekReview" style="font-size:14px; line-height:1.8;"></div>
       </div>
+      <div id="weightChart"></div>
     </section>
 
     <!-- 设置视图 -->
@@ -520,31 +522,26 @@ a{color:var(--accent);}
       <button class="btn-ghost" id="importJson" style="margin-left:8px;">导入备份</button>
       <input type="file" id="importFile" accept=".json" style="display:none">
       <div style="text-align:center; margin-top:32px;">
-        <button id="versionBtn" style="color:var(--text-3); font-size:12px; text-decoration:underline;">日课 Todo v0.5 · 查看更新日志</button>
+        <button id="versionBtn" style="color:var(--text-3); font-size:12px; text-decoration:underline;">日课 Todo v0.6 · 查看更新日志</button>
       </div>
       <div id="changelog" style="display:none; margin-top:12px; padding:14px; background:var(--surface-2); border-radius:10px; font-size:13px; line-height:1.8; color:var(--text-2); text-align:left;">
+        <b>v0.6</b><br>
+        · 手机端排版压缩：任务更紧凑，一屏看更多<br>
+        · 体重打卡：点"体重管理"任务打勾时输入体重<br>
+        · 统计页加体重趋势折线图（近30天）<br><br>
         <b>v0.5</b><br>
-        · 优先级色条加粗，P1鲜红/P2明黄一眼区分<br>
-        · 今日视图加星标功能，标记今日重点<br>
-        · 顶部加快速选优先级下拉（P1/P2/P3）<br>
-        · 默认加"收集箱"项目，没想好归哪的先丢这<br>
-        · 日期栏显示任务数：未完成X/共Y，昨天/明天任务数<br>
-        · 新增周视图：整周7天每天任务量，点跳那天<br>
-        · 父子项目收纳：今日视图父项目下缩进显示子项目<br>
-        · 晚间按钮移到顶部，改成实色按钮更醒目<br><br>
+        · 优先级色条加粗换色，P1鲜红/P2明黄<br>
+        · 快速选优先级、收集箱、今日重点星标<br>
+        · 日期栏任务数、周视图、父子项目收纳<br>
+        · 晚间按钮移顶部改醒目<br><br>
         <b>v0.4</b><br>
-        · 习惯打卡：每天重复，打勾自动推明天<br>
-        · 拖延提醒：滚3天以上标黄<br>
-        · 截止日期：5天内显示倒计时<br>
-        · 晚间一键滚动、自动日记<br>
-        · 子项目旁加 + 号直接建子项目<br><br>
+        · 习惯打卡、拖延提醒、截止日期、一键滚动、自动日记<br><br>
         <b>v0.3</b><br>
-        · 任务左侧优先级色条，P1自动排最前<br>
-        · 子项目、项目重命名、快速选项目<br><br>
+        · 优先级色条、子项目、项目重命名<br><br>
         <b>v0.2</b><br>
         · 操作按钮放大，30秒自动同步<br><br>
         <b>v0.1</b><br>
-        · 初版：今日视图、项目分组、自动滚动、番茄钟、热力图
+        · 初版
       </div>
     </section>
   </main>
@@ -631,10 +628,11 @@ const CFG_KEY = 'rike_cfg_v1';
 const PROJECT_COLORS = ['#2D6A4F','#C97A14','#7C5CBF','#C9303C','#1F6F8B','#B07D2B','#5C6B7A','#A0522D'];
 
 let state = {
-  tasks: [],          // {id,title,project,tags:[],priority,dueDate,completed,completedAt,createdAt,note,subs:[{t,done}],pomoDone}
+  tasks: [],
   projects: ['📥 收集箱','工作','教育','生活','健康'],
   settings: { dailyGoal:5, theme:'auto' },
-  colorMap: {}        // project -> color
+  colorMap: {},
+  weightLog: []  // {date, weight}
 };
 let currentDate = todayStr();   // 正在查看的日期 YYYY-MM-DD
 let editingId = null;
@@ -1021,6 +1019,36 @@ function renderStats(){
     本周（${fmtDate(monday)} 起）共计划 <b>${weekTotal}</b> 件，完成 <b>${weekDone}</b> 件，完成率 <b style="color:var(--accent)">${pct}%</b>。<br>
     ${pct>=70?'状态不错，保持节奏。':pct>=40?'完成率中等，明天可以少排几件。':'完成率偏低，建议明天只安排最重要的 3 件。'}
   `;
+
+  // 体重趋势图（近30天）
+  const wLog = state.weightLog || [];
+  const wEl = document.getElementById('weightChart');
+  if(wLog.length >= 2){
+    const last30 = wLog.slice(-30);
+    const weights = last30.map(x=>x.weight);
+    const minW = Math.min(...weights);
+    const maxW = Math.max(...weights);
+    const range = maxW - minW || 1;
+    let svg = `<svg viewBox="0 0 300 80" style="width:100%; height:100px;">`;
+    let pts = '';
+    last30.forEach((w,i)=>{
+      const x = i/(last30.length-1)*280 + 10;
+      const y = 70 - ((w.weight - minW)/range)*60;
+      pts += `${x},${y} `;
+      svg += `<circle cx="${x}" cy="${y}" r="2" fill="var(--accent)"/>`;
+    });
+    svg += `<polyline points="${pts.trim()}" fill="none" stroke="var(--accent)" stroke-width="2"/>`;
+    svg += `<text x="10" y="15" font-size="10" fill="var(--text-3)">${minW.toFixed(1)}kg</text>`;
+    svg += `<text x="10" y="75" font-size="10" fill="var(--text-3)">${maxW.toFixed(1)}kg</text>`;
+    svg += `</svg>`;
+    const latest = wLog[wLog.length-1].weight;
+    wEl.innerHTML = `<div style="margin-top:20px; padding:14px; background:var(--surface-2); border-radius:10px;">
+      <div style="font-size:13px; font-weight:600; margin-bottom:8px;">体重趋势 · 最新 ${latest.toFixed(1)}kg</div>
+      ${svg}
+    </div>`;
+  } else {
+    wEl.innerHTML = '';
+  }
 }
 
 /* ================================================================
@@ -1106,6 +1134,13 @@ function renderAll(){
 function toggleTask(id){
   const t = state.tasks.find(x=>x.id===id);
   if(!t) return;
+  // 体重管理任务：打勾时输入体重
+  if(t.title.includes('体重') && !t.completed){
+    const w = prompt('今天体重多少 kg？', '');
+    if(w && !isNaN(parseFloat(w))){
+      state.weightLog.push({date: todayStr(), weight: parseFloat(w)});
+    }
+  }
   if(t.recurrence==='daily' && !t.completed){
     // 习惯任务打勾：记录今天完成，自动推到明天重新出现
     t.completed = false;
@@ -1113,7 +1148,7 @@ function toggleTask(id){
     t.dueDate = addDays(t.dueDate, 1);
     t.rollCount = 0;
     commit();
-    toast('打卡成功，明天继续');
+    toast('打卡成功');
     return;
   }
   t.completed = !t.completed;
