@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#F7F6F2">
-<title>日课 v0.6 · Daily</title>
+<title>日课 v0.6.1 · Daily</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%232D6A4F'/><path d='M28 52 L44 68 L74 36' stroke='white' stroke-width='10' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
 <style>
 /* ============ 设计 token ============ */
@@ -522,7 +522,7 @@ a{color:var(--accent);}
       <button class="btn-ghost" id="importJson" style="margin-left:8px;">导入备份</button>
       <input type="file" id="importFile" accept=".json" style="display:none">
       <div style="text-align:center; margin-top:32px;">
-        <button id="versionBtn" style="color:var(--text-3); font-size:12px; text-decoration:underline;">日课 Todo v0.6 · 查看更新日志</button>
+        <button id="versionBtn" style="color:var(--text-3); font-size:12px; text-decoration:underline;">日课 Todo v0.6.1 · 查看更新日志</button>
       </div>
       <div id="changelog" style="display:none; margin-top:12px; padding:14px; background:var(--surface-2); border-radius:10px; font-size:13px; line-height:1.8; color:var(--text-2); text-align:left;">
         <b>v0.6</b><br>
@@ -632,7 +632,8 @@ let state = {
   projects: ['📥 收集箱','工作','教育','生活','健康'],
   settings: { dailyGoal:5, theme:'auto' },
   colorMap: {},
-  weightLog: []  // {date, weight}
+  weightLog: [],  // {date, weight}
+  diaries: {}     // {date: markdownContent}
 };
 let currentDate = todayStr();   // 正在查看的日期 YYYY-MM-DD
 let editingId = null;
@@ -974,6 +975,10 @@ function renderCalendar(){
     dh += `<div class="project-head"><span class="dot" style="background:${projectColor(proj)}"></span><span class="name">${escapeHtml(proj)}</span></div>`;
     dh += arr.map(t=>taskHtml(t,true)).join('');
   }
+  // 如果有那天的日记，显示出来
+  if(state.diaries && state.diaries[currentDate]){
+    dh += `<div style="margin-top:16px; padding:14px; background:var(--surface-2); border-radius:10px; white-space:pre-wrap; font-size:13px; line-height:1.7;">${escapeHtml(state.diaries[currentDate])}</div>`;
+  }
   document.getElementById('calDayTasks').innerHTML = dh;
 }
 
@@ -1142,8 +1147,8 @@ function toggleTask(id){
     }
   }
   if(t.recurrence==='daily' && !t.completed){
-    // 习惯任务打勾：记录今天完成，自动推到明天重新出现
-    t.completed = false;
+    // 习惯任务打勾：今天标记完成，明天自动出现
+    t.completed = true;
     t.completedAt = new Date().toISOString();
     t.dueDate = addDays(t.dueDate, 1);
     t.rollCount = 0;
@@ -1442,21 +1447,37 @@ document.getElementById('diaryBtn').onclick = async ()=>{
   const today = todayStr();
   const done = state.tasks.filter(t=>t.completed && t.completedAt && t.completedAt.slice(0,10)===today);
   const active = state.tasks.filter(t=>t.dueDate===today && !t.completed);
+  const p1Active = active.filter(t=>t.priority===1);
+
   let md = `# ${fmtDate(today)} ${weekdayCN(today)}\n\n`;
+  md += `## 今日复盘\n\n`;
+
+  // 分析
+  md += `**完成情况：** 今天完成 ${done.length} 件，还剩 ${active.length} 件未完成。\n\n`;
+  if(p1Active.length > 0){
+    md += `**⚠️ 注意：** 还有 ${p1Active.length} 件 P1 高优先级任务没做完：${p1Active.map(t=>t.title).join('、')}。建议明天优先处理。\n\n`;
+  }
+  if(active.length === 0){
+    md += `**今天全部完成了，很好！** 可以早点休息。\n\n`;
+  } else if(active.length > 5){
+    md += `**任务太多了：** 今天排了 ${active.length} 件没做完，明天建议只挑 3 件最重要的，其余延后。\n\n`;
+  }
+
   md += `## 完成了什么\n\n`;
   if(done.length===0) md += `（今天还没有完成任务）\n`;
   else done.forEach(t=>{ md += `- [x] ${t.title}\n`; });
+
   md += `\n## 还没做完\n\n`;
   if(active.length===0) md += `（都做完了）\n`;
-  else active.forEach(t=>{ md += `- [ ] ${t.title}\n`; });
-  md += `\n---\n*由日课 Todo 自动生成*\n`;
-  // 下载
-  const blob = new Blob([md],{type:'text/markdown'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `diary-${today}.md`;
-  a.click();
-  toast('日记已下载，可保存到 GitHub');
+  else active.forEach(t=>{ md += `- [ ] ${t.title}（P${t.priority}）\n`; });
+
+  // 存到 state
+  state.diaries[today] = md;
+  commit();
+  toast('今日日记已保存');
+
+  // 弹窗显示
+  alert(md.replace(/\n/g, '\n'));
 };
 
 /* ================================================================
